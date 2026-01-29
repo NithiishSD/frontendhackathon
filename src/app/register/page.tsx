@@ -1,7 +1,7 @@
 "use client"
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
-
+API_URL=""
 const problemDomains = [
   "Sustainable Development and Climate Action",
   "Smart Cities and Urban Innovation",
@@ -176,19 +176,85 @@ export default function RegisterPage() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+  const handleSubmit = async (): Promise<void> => {
+    // If you already have validation
+    const newErrors = validateForm?.();
+    if (newErrors && Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
-    
     setIsSubmitting(true);
-    console.log('Form data:', formData);
-    
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
-    setIsSubmitting(false);
-    setIsSuccess(true);
+
+    try {
+      const formDataToSend = new FormData();
+
+      // -------------------------------
+      // Team Information
+      // -------------------------------
+      formDataToSend.append("teamName", formData.teamName);
+      formDataToSend.append("institutionName", formData.institutionName);
+      formDataToSend.append("totalMembers", String(formData.totalMembers));
+
+      // -------------------------------
+      // Members (send as JSON)
+      // -------------------------------
+      formDataToSend.append("members", JSON.stringify(formData.members));
+
+      // -------------------------------
+      // Project Info
+      // -------------------------------
+      formDataToSend.append("problemDomain", formData.problemDomain);
+      formDataToSend.append("projectTitle", formData.projectTitle);
+      formDataToSend.append("githubRepoLink", formData.githubRepoLink);
+      formDataToSend.append("demoVideoURL", formData.demoVideoURL);
+
+      // -------------------------------
+      // Files
+      // -------------------------------
+      if (formData.pptFile instanceof File) {
+        formDataToSend.append("pptFile", formData.pptFile);
+      }
+
+      if (formData.bonafideFile instanceof File) {
+        formDataToSend.append("bonafideFile", formData.bonafideFile);
+      }
+
+      // -------------------------------
+      // Agreement
+      // -------------------------------
+      formDataToSend.append("agreeToRules", String(formData.agreeToRules));
+
+      // -------------------------------
+      // Send request
+      // -------------------------------
+      const response = await fetch(`${API_URL}/api/registration`, {
+        method: "POST",
+        body: formDataToSend,
+      });
+
+      const result: { success?: boolean; message?: string } = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Registration failed");
+      }
+
+      alert("Registration submitted successfully!");
+
+      // Optional reset
+      // setFormData(initialFormState);
+
+    } catch (error) {
+      console.error("Submit error:", error);
+
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert("Something went wrong while submitting.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSuccess) {
