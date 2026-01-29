@@ -44,7 +44,7 @@ const Button = ({ children, variant = "default", disabled = false, onClick, type
 const Navbar = () => (
   <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900/95 backdrop-blur border-b border-gray-800">
     <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-      <div className="text-xl font-bold text-white">AI4Dev '26</div>
+      <div className="text-xl font-bold text-white flex items-center gap-4"><img src="/assets/psgtechlogo.jpeg" alt="" width="40px" height="30px" /><p>AI4Dev '26</p></div>
       <div className="flex items-center gap-4">
         <a 
           href="/" 
