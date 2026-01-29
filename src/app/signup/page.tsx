@@ -1,8 +1,10 @@
 "use client"
 
-import React, { useState } from 'react';
-import { CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
-const API_URL=""
+import React, { useState, useEffect } from 'react';
+import { CheckCircle2, Loader2, ArrowLeft, Clock } from 'lucide-react';
+
+const API_URL = "";
+
 const Card = ({ children, className = "" }) => (
   <div className={`bg-gray-900 border border-gray-800 rounded-lg shadow-lg ${className}`}>
     {children}
@@ -71,13 +73,34 @@ const Footer = () => (
 
 export default function SignUp() {
   // State Management
-  const [step, setStep] = useState(1); // 1 = Email, 2 = OTP & Password
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
+  
+  // OTP Timer State - NEW
+  const [otpTimer, setOtpTimer] = useState(30);
+  const [canResend, setCanResend] = useState(false);
+
+  // OTP Countdown Timer - NEW
+  useEffect(() => {
+    let interval;
+    if (step === 2 && otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [step, otpTimer]);
 
   // Send OTP Handler
   const handleSendOtp = async (e) => {
@@ -103,11 +126,43 @@ export default function SignUp() {
       if (response.ok) {
         setFeedback({ type: 'success', message: "OTP sent! Check your inbox." });
         setStep(2);
+        setOtpTimer(30); // Reset timer - NEW
+        setCanResend(false); 
       } else {
         setFeedback({ type: 'error', message: data.message || "Failed to send OTP." });
       }
     } catch (err) {
       console.error("OTP Error:", err);
+      setFeedback({ type: 'error', message: "Server connection failed." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend OTP Handler - NEW
+  const handleResendOtp = async () => {
+    setFeedback({ type: '', message: '' });
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setFeedback({ type: 'success', message: "New OTP sent! Check your inbox." });
+        setOtpTimer(30);
+        setCanResend(false);
+        setOtp('');
+      } else {
+        setFeedback({ type: 'error', message: data.message || "Failed to resend OTP." });
+      }
+    } catch (err) {
+      console.error("Resend OTP Error:", err);
       setFeedback({ type: 'error', message: "Server connection failed." });
     } finally {
       setLoading(false);
@@ -136,7 +191,6 @@ export default function SignUp() {
       const data = await response.json();
 
       if (response.ok) {
-        // Save session data
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('userEmail', email);
         setFeedback({ type: 'success', message: "Account Created! Redirecting to registration..." });
@@ -170,7 +224,6 @@ export default function SignUp() {
           </div>
 
           <Card className="p-8">
-            {/* Feedback Messages */}
             {feedback.message && (
               <div className={`mb-6 p-4 rounded-lg text-center font-medium ${
                 feedback.type === 'error' 
@@ -181,7 +234,6 @@ export default function SignUp() {
               </div>
             )}
 
-            {/* Step 1: Email */}
             {step === 1 && (
               <div className="space-y-6">
                 <div className="space-y-2">
@@ -220,9 +272,20 @@ export default function SignUp() {
               </div>
             )}
 
-            {/* Step 2: OTP & Password */}
             {step === 2 && (
               <div className="space-y-6">
+                {/* TIMER DISPLAY - THIS IS THE KEY PART */}
+                <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                  <Clock className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-400">
+                    {canResend ? (
+                      "OTP expired. Please request a new one."
+                    ) : (
+                      `OTP expires in ${otpTimer}s`
+                    )}
+                  </span>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-white">Enter OTP</label>
                   <Input
@@ -249,7 +312,7 @@ export default function SignUp() {
                 <Button
                   type="button"
                   onClick={handleRegister}
-                  disabled={loading}
+                  disabled={loading || canResend}
                   className="w-full"
                 >
                   {loading ? (
@@ -262,12 +325,33 @@ export default function SignUp() {
                   )}
                 </Button>
 
+                {canResend && (
+                  <Button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={loading}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Resending...
+                      </>
+                    ) : (
+                      'Resend OTP'
+                    )}
+                  </Button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
                     setStep(1);
                     setOtp('');
                     setPassword('');
+                    setOtpTimer(30);
+                    setCanResend(false);
                     setFeedback({ type: '', message: '' });
                   }}
                   className="w-full flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
